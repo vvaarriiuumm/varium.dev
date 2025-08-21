@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <link href="/static/css/output.css" rel="stylesheet">
+    <title>varium.dev</title>
+</head>
+
+    <body class="bg-gradient-to-br from-neutral-950 to-neutral-900 text-white w-screen h-screen">
+        <div class="flex flex-col items-center">
+            <img src="/static/img/sicario.jpg" class="w-6xl mt-12 rounded-xl">
+            
+            <div class="flex flex-col mt-4 space-y-4 text-center">
+                <a class="bg-zinc-300 text-zinc-800 px-8 py-2 hover:bg-blue-900 hover:text-white" href="https://letterboxd.com/varium">Letterboxd</a>
+                <a class="bg-zinc-300 text-zinc-800 px-8 py-2 hover:bg-blue-900 hover:text-white" href="https://discord.gg/411">Discord</a>
+                <a class="bg-zinc-300 text-zinc-800 px-8 py-2 hover:bg-blue-900 hover:text-white" href="https://tiktok.com/@variumm">TikTok</a>
+            </div>
+
+        </div>
+        <div class="flex flex-col ml-12 mt-12">
+            <img src="" id="avatar" class="w-50 h-50 border-2 border-zinc-300 rounded-xl" alt="Var's Discord Avatar">
+            <strong>varium</strong>
+            <p>
+                <i>Good evening, fellas. This is my website. <br>It is better than 6spect.com, which is gay and sucks.</i>
+            </p>
+        </div>
+
+    </body>
+
+    <script>
+
+        async function getAvatar() {
+            const response = await fetch("/api/avatar")
+
+            const text = await response.text()
+            const avatarImage = document.getElementById("avatar")
+            avatarImage.setAttribute("src", text)
+        }
+
+        getAvatar()
+
+
+    </script>
+
+</html>
