@@ -173,7 +173,7 @@ func main() {
 	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
 	http.HandleFunc("/api/avatar", apiAvatar)
 
-	address := "127.0.0.1:8000"
+	address := "127.0.0.1:8003"
 
 	fmt.Println("Starting server on " + address)
 	err := http.ListenAndServe(address, nil)
