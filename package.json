@@ -7,7 +7,7 @@
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
-    "deploy:pages": "wrangler pages deploy dist"
+    "deploy:pages": "node scripts/deploy-pages.mjs"
   },
   "dependencies": {
     "@astrojs/react": "^4.4.2",
