@@ -1,0 +1,338 @@
+---
+export interface Props {
+  class?: string
+  count?: number
+  connectionDistance?: number
+  nodeColor?: string
+  lineColor?: string
+  nodeSize?: number
+  mouseRadius?: number
+  glow?: boolean
+}
+
+const {
+  class: className = "",
+  count: particleCount = 300,
+  connectionDistance: particleConnectionDistance = 175,
+  nodeColor: particleNodeColor = "rgba(150, 150, 150, 0.95)",
+  lineColor: particleLineColor = "rgba(255, 255, 255, 0.22)",
+  nodeSize: particleNodeSize = 2,
+  mouseRadius: particleMouseRadius = 100,
+  glow: particleGlow = true,
+} = Astro.props
+---
+
+<div
+  id="constellation-container"
+  class={`fixed inset-0 overflow-hidden bg-[#050506] ${className}`}
+>
+  <div class="bubble-bg pointer-events-none absolute inset-0 z-0">
+    <svg class="hidden" aria-hidden="true">
+      <defs>
+        <filter id="bubble-goo">
+          <feGaussianBlur in="SourceGraphic" result="blur" stdDeviation="10" />
+          <feColorMatrix
+            in="blur"
+            mode="matrix"
+            result="goo"
+            values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -8"
+          />
+          <feBlend in="SourceGraphic" in2="goo" />
+        </filter>
+      </defs>
+    </svg>
+    <div class="bubble-goo">
+      <div class="bubble bubble-1"></div>
+      <div class="bubble bubble-2"></div>
+      <div class="bubble bubble-3"></div>
+      <div class="bubble bubble-4"></div>
+      <div class="bubble bubble-5"></div>
+      <div class="bubble bubble-interactive" id="bubble-interactive"></div>
+    </div>
+  </div>
+
+  <canvas id="constellation-canvas" class="absolute inset-0 z-10 h-full w-full"></canvas>
+
+  <!-- Centered oval glow: clean crimson core with soft amber halo -->
+  <div
+    class="pointer-events-none absolute inset-0 z-20 mix-blend-screen"
+    style="background:
+      radial-gradient(ellipse 34% 22% at 50% 52%, rgba(245, 245, 245, 0.11) 0%, rgba(180, 180, 180, 0.06) 38%, rgba(0,0,0,0) 72%),
+      radial-gradient(ellipse 52% 30% at 50% 52%, rgba(210, 210, 210, 0.08) 0%, rgba(165, 165, 165, 0.05) 35%, rgba(120, 120, 120, 0.03) 62%, rgba(0,0,0,0) 86%);"
+  />
+
+  <!-- Vignette -->
+  <div
+    class="pointer-events-none absolute inset-0 z-20 opacity-75"
+    style="background:
+      radial-gradient(ellipse at center, rgba(0,0,0,0) 42%, rgba(0,0,0,0.68) 100%);"
+  />
+
+  <slot />
+</div>
+
+<script
+  define:vars={{
+    particleCount,
+    particleConnectionDistance,
+    particleNodeColor,
+    particleLineColor,
+    particleNodeSize,
+    particleMouseRadius,
+    particleGlow,
+  }}
+>
+  const container = document.getElementById("constellation-container")
+  const canvas = document.getElementById("constellation-canvas")
+
+  if (!container || !canvas) {
+    return
+  }
+
+  const ctx = canvas.getContext("2d")
+  if (!ctx) {
+    return
+  }
+
+  const count = particleCount
+  const connectionDistance = particleConnectionDistance
+  const nodeColor = particleNodeColor
+  const lineColor = particleLineColor
+  const nodeSize = particleNodeSize
+  const mouseRadius = particleMouseRadius
+  const glow = particleGlow
+  const interactiveBubble = document.getElementById("bubble-interactive")
+
+  let rect = container.getBoundingClientRect()
+  let width = rect.width
+  let height = rect.height
+
+  canvas.width = width
+  canvas.height = height
+
+  let animationId = 0
+  let mouseX = -1000
+  let mouseY = -1000
+  let bubbleX = 0
+  let bubbleY = 0
+  let bubbleTargetX = 0
+  let bubbleTargetY = 0
+
+  const nodes = Array.from({ length: count }).map(() => ({
+    x: Math.random() * width,
+    y: Math.random() * height,
+    vx: (Math.random() - 0.5) * 0.3,
+    vy: (Math.random() - 0.5) * 0.3,
+    radius: Math.random() * nodeSize + nodeSize * 0.5,
+  }))
+
+  const handleMouseMove = (e) => {
+    const rect = container.getBoundingClientRect()
+    mouseX = e.clientX - rect.left
+    mouseY = e.clientY - rect.top
+    bubbleTargetX = e.clientX - (rect.left + rect.width / 2)
+    bubbleTargetY = e.clientY - (rect.top + rect.height / 2)
+  }
+
+  const handleMouseLeave = () => {
+    mouseX = -1000
+    mouseY = -1000
+    bubbleTargetX = 0
+    bubbleTargetY = 0
+  }
+
+  const handleResize = () => {
+    const rect = container.getBoundingClientRect()
+    width = rect.width
+    height = rect.height
+    canvas.width = width
+    canvas.height = height
+  }
+
+  container.addEventListener("mousemove", handleMouseMove)
+  container.addEventListener("mouseleave", handleMouseLeave)
+
+  const ro = new ResizeObserver(handleResize)
+  ro.observe(container)
+
+  function animate() {
+    bubbleX += (bubbleTargetX - bubbleX) * 0.08
+    bubbleY += (bubbleTargetY - bubbleY) * 0.08
+    if (interactiveBubble) {
+      interactiveBubble.style.transform = `translate3d(${bubbleX}px, ${bubbleY}px, 0)`
+    }
+
+    ctx.clearRect(0, 0, width, height)
+
+    for (const node of nodes) {
+      if (mouseRadius > 0) {
+        const dx = node.x - mouseX
+        const dy = node.y - mouseY
+        const dist = Math.sqrt(dx * dx + dy * dy)
+
+        if (dist < mouseRadius && dist > 0) {
+          const force = ((mouseRadius - dist) / mouseRadius) * 0.02
+          node.vx += (dx / dist) * force
+          node.vy += (dy / dist) * force
+        }
+      }
+
+      node.x += node.vx
+      node.y += node.vy
+      node.vx *= 0.99
+      node.vy *= 0.99
+
+      node.vx += (Math.random() - 0.5) * 0.01
+      node.vy += (Math.random() - 0.5) * 0.01
+
+      if (node.x < 0 || node.x > width) {
+        node.vx *= -1
+        node.x = Math.max(0, Math.min(width, node.x))
+      }
+      if (node.y < 0 || node.y > height) {
+        node.vy *= -1
+        node.y = Math.max(0, Math.min(height, node.y))
+      }
+    }
+
+    // Draw lines
+    ctx.strokeStyle = lineColor
+    ctx.lineWidth = 1
+
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        const dx = nodes[i].x - nodes[j].x
+        const dy = nodes[i].y - nodes[j].y
+        const dist = Math.sqrt(dx * dx + dy * dy)
+
+        if (dist < connectionDistance) {
+          ctx.globalAlpha = (1 - dist / connectionDistance) * 0.5
+          ctx.beginPath()
+          ctx.moveTo(nodes[i].x, nodes[i].y)
+          ctx.lineTo(nodes[j].x, nodes[j].y)
+          ctx.stroke()
+        }
+      }
+    }
+
+    ctx.globalAlpha = 1
+
+    for (const node of nodes) {
+      if (glow) {
+        const gradient = ctx.createRadialGradient(
+          node.x,
+          node.y,
+          0,
+          node.x,
+          node.y,
+          node.radius * 4
+        )
+
+        gradient.addColorStop(0, nodeColor.replace("1)", "0.3)"))
+        gradient.addColorStop(1, "transparent")
+
+        ctx.fillStyle = gradient
+        ctx.beginPath()
+        ctx.arc(node.x, node.y, node.radius * 4, 0, Math.PI * 2)
+        ctx.fill()
+      }
+
+      ctx.fillStyle = nodeColor
+      ctx.beginPath()
+      ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2)
+      ctx.fill()
+    }
+
+    animationId = requestAnimationFrame(animate)
+  }
+
+  animationId = requestAnimationFrame(animate)
+
+  addEventListener("pagehide", () => {
+    cancelAnimationFrame(animationId)
+    container.removeEventListener("mousemove", handleMouseMove)
+    container.removeEventListener("mouseleave", handleMouseLeave)
+    ro.disconnect()
+  })
+</script>
+
+<style>
+  .bubble-goo {
+    position: absolute;
+    inset: 0;
+    filter: url(#bubble-goo) blur(36px);
+  }
+
+  .bubble {
+    position: absolute;
+    width: 70vmax;
+    height: 70vmax;
+    border-radius: 9999px;
+    mix-blend-mode: screen;
+    opacity: 0.1;
+    background: radial-gradient(circle at center, rgba(255, 255, 255, 0.85) 0%, rgba(255, 255, 255, 0) 58%);
+  }
+
+  .bubble-1 {
+    top: -20vmax;
+    left: -10vmax;
+    animation: bubbleFloatY 30s ease-in-out infinite;
+  }
+
+  .bubble-2 {
+    top: -10vmax;
+    right: -20vmax;
+    animation: bubbleOrbitA 22s linear infinite;
+  }
+
+  .bubble-3 {
+    bottom: -24vmax;
+    left: 10vmax;
+    animation: bubbleOrbitB 38s linear infinite;
+  }
+
+  .bubble-4 {
+    top: 20%;
+    left: 20%;
+    opacity: 0.08;
+    animation: bubbleFloatX 42s ease-in-out infinite;
+  }
+
+  .bubble-5 {
+    bottom: -30vmax;
+    right: -16vmax;
+    width: 90vmax;
+    height: 90vmax;
+    opacity: 0.07;
+    animation: bubbleOrbitA 28s linear infinite reverse;
+  }
+
+  .bubble-interactive {
+    width: 100vmax;
+    height: 100vmax;
+    left: calc(50% - 50vmax);
+    top: calc(50% - 50vmax);
+    opacity: 0.06;
+    transition: opacity 180ms linear;
+  }
+
+  @keyframes bubbleFloatY {
+    0%, 100% { transform: translateY(-4vmax); }
+    50% { transform: translateY(4vmax); }
+  }
+
+  @keyframes bubbleFloatX {
+    0%, 100% { transform: translateX(-5vmax); }
+    50% { transform: translateX(5vmax); }
+  }
+
+  @keyframes bubbleOrbitA {
+    from { transform: rotate(0deg) translateX(6vmax) rotate(0deg); }
+    to { transform: rotate(360deg) translateX(6vmax) rotate(-360deg); }
+  }
+
+  @keyframes bubbleOrbitB {
+    from { transform: rotate(0deg) translateY(7vmax) rotate(0deg); }
+    to { transform: rotate(360deg) translateY(7vmax) rotate(-360deg); }
+  }
+</style>
